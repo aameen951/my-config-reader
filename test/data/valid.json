@@ -1,0 +1,8 @@
+{
+  "any_val": 1,
+  "num_val": 2,
+  "str_val": "a",
+  "bool_val": true,
+  "null_val": null,
+  "_": "_"
+}
