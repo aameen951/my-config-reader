@@ -16,18 +16,12 @@ function bool_validator<T>(key: string, v: T): void {
 
 export class ConfigReader {
 
-  public path: string;
+  public path = "";
   private data = new Map<string, any>();
 
-  constructor(path: string) {
-    this.path = path;
-    let data: any = null;
-    try {
-      data = fs.readFileSync(this.path, {encoding: 'utf-8'});
-    } catch(e: any) {
-      throw new Error(`Error: failed to load config file '${this.path}' (details: ${e.message})`);
-    }
+  private constructor() {}
 
+  private _from_stringified_json(data: string){
     try {
       data = JSON.parse(data);
     } catch(e: any) {
@@ -49,36 +43,62 @@ export class ConfigReader {
     }
   }
 
-  read<T>(key: string, validate?: Validator<T>): ReadRes<T> {
+  static from_file_path(path: string){
+    const config = new ConfigReader();
+    config.path = path;
+    let data: any = null;
+    try {
+      data = fs.readFileSync(config.path, {encoding: 'utf-8'});
+    } catch(e: any) {
+      throw new Error(`Error: failed to load config file '${config.path}' (details: ${e.message})`);
+    }
+    config._from_stringified_json(data);
+    return config;
+  }
+  static from_stringified_json(data: string){
+    const config = new ConfigReader();
+    config.path = "<string-input>";
+    config._from_stringified_json(data);
+    return config;
+  }
+
+
+  read<T>(key: string, allow_null: boolean, validate?: Validator<T>): ReadRes<T> {
     if(this.data.has(key)) {
       let value = this.data.get(key)!;
-      if(validate)validate(key, value);
+      if(value === null) {
+        if(!allow_null) {
+          throw new Error(`Error: the value of '${key}' is not allowed to be null`);
+        }
+      } else if(validate) {
+        validate(key, value);
+      }
       return {ok: true, value};
     } else {
       return {ok: false};
     }
   }
-  read_or<T, V>(key: string, default_value: V, validate?: Validator<T>){
-    let res = this.read(key, validate);
+  read_or<T, V>(key: string, allow_null: boolean, default_value: V, validate?: Validator<T>){
+    let res = this.read(key, allow_null, validate);
     if(!res.ok)return default_value;
     return res.value;
   }
-  read_or_throw<T>(key: string, validate?: Validator<T>): T {
-    let res = this.read<T>(key, validate);
+  read_or_throw<T>(key: string, allow_null: boolean, validate?: Validator<T>): T {
+    let res = this.read<T>(key, allow_null, validate);
     if(!res.ok)throw new Error(`Error: config value wasn't found for '${key}' in '${this.path}'`);
     return res.value;
   }
 
-  read_str(key: string) {return this.read<string>(key, str_validator);}
-  read_str_or<T>(key: string, default_value: T) {return this.read_or<string, T>(key, default_value, str_validator);}
-  read_str_or_throw(key: string) {return this.read_or_throw<string>(key, str_validator);}
+  read_str(key: string, allow_null: boolean) {return this.read<string>(key, allow_null, str_validator);}
+  read_str_or<T>(key: string, allow_null: boolean, default_value: T) {return this.read_or<string, T>(key, allow_null, default_value, str_validator);}
+  read_str_or_throw(key: string, allow_null: boolean) {return this.read_or_throw<string>(key, allow_null, str_validator);}
 
-  read_num(key: string) {return this.read<number>(key, num_validator);}
-  read_num_or<T>(key: string, default_value: T) {return this.read_or<number, T>(key, default_value, num_validator);}
-  read_num_or_throw(key: string) {return this.read_or_throw<number>(key, num_validator);}
+  read_num(key: string, allow_null: boolean) {return this.read<number>(key, allow_null, num_validator);}
+  read_num_or<T>(key: string, allow_null: boolean, default_value: T) {return this.read_or<number, T>(key, allow_null, default_value, num_validator);}
+  read_num_or_throw(key: string, allow_null: boolean) {return this.read_or_throw<number>(key, allow_null, num_validator);}
 
-  read_bool(key: string) {return this.read<boolean>(key, bool_validator);}
-  read_bool_or<T>(key: string, default_value: T) {return this.read_or<boolean, T>(key, default_value, bool_validator);}
-  read_bool_or_throw(key: string) {return this.read_or_throw<boolean>(key, bool_validator);}
+  read_bool(key: string, allow_null: boolean) {return this.read<boolean>(key, allow_null, bool_validator);}
+  read_bool_or<T>(key: string, allow_null: boolean, default_value: T) {return this.read_or<boolean, T>(key, allow_null, default_value, bool_validator);}
+  read_bool_or_throw(key: string, allow_null: boolean) {return this.read_or_throw<boolean>(key, allow_null, bool_validator);}
 
 }
